@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ken Burns Effect Generator</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/interactjs/dist/interact.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Ken Burns Effect Video Generator</h1>
+        <div class="controls">
+            <div class="control-group">
+                <label for="image-upload">1. Upload Image:</label>
+                <input type="file" id="image-upload" accept="image/png, image/jpeg">
+            </div>
+            <div class="control-group">
+                <label for="duration">Total Duration (s):</label>
+                <input type="number" id="duration" value="10" min="1">
+            </div>
+            <div class="control-group">
+                <label for="padding">Static Padding (s):</label>
+                <input type="number" id="padding" value="1" min="0" step="0.1">
+            </div>
+            <div class="control-group">
+                <label for="aspect-ratio">Aspect Ratio:</label>
+                <input type="text" id="aspect-ratio" value="16:9" placeholder="e.g., 16:9">
+            </div>
+            <div class="control-group">
+                <label for="resolution">Resolution:</label>
+                <select id="resolution">
+                    <option value="720p">720p (1280x720)</option>
+                    <option value="1080p" selected>1080p (1920x1080)</option>
+                    <option value="2k">2K (2560x1440)</option>
+                    <option value="4k">4K (3840x2160)</option>
+                </select>
+            </div>
+            <div class="control-group checkbox-group">
+                <input type="checkbox" id="enforce-aspect" checked>
+                <label for="enforce-aspect">Enforce Aspect Ratio</label>
+            </div>
+        </div>
+
+        <div id="image-container">
+            <img id="display-image" src="" alt="Upload an image to begin">
+            <div id="start-rect" class="resizable-draggable">Start</div>
+            <div id="end-rect" class="resizable-draggable">End</div>
+        </div>
+
+        <div id="dimensions-info" class="hidden">
+            <p>Start Box (Original): <span id="start-dim-info">--</span></p>
+            <p>End Box (Original): <span id="end-dim-info">--</span></p>
+            <p id="resolution-warning" class="warning-text"></p>
+        </div>
+
+        <button id="generate-btn" disabled>Generate Video</button>
+
+        <div id="result-container">
+            <div id="loader" class="hidden">Generating video...</div>
+            <video id="result-video" controls class="hidden"></video>
+            <a id="download-link" href="#" class="hidden" download>Download Video</a>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
