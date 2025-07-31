@@ -31,6 +31,24 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     /**
+     * Calculates the greatest common divisor (GCD) to simplify ratios.
+     */
+    function gcd(a, b) {
+        return b === 0 ? a : gcd(b, a % b);
+    }
+
+    /**
+     * Updates the aspect ratio text input based on the selected resolution.
+     */
+    function updateAspectRatioFromResolution() {
+        const resolution = RESOLUTION_DIMS[resolutionSelect.value];
+        if (!resolution) return;
+
+        const commonDivisor = gcd(resolution.w, resolution.h);
+        aspectRatioInput.value = `${resolution.w / commonDivisor}:${resolution.h / commonDivisor}`;
+    }
+
+    /**
      * Updates the dimension info text and checks for resolution warnings.
      */
     function updateDimensions() {
@@ -83,11 +101,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     generateBtn.disabled = false;
                     dimensionsInfo.classList.remove('hidden');
 
-                    const w = displayImage.width * 0.8;
-                    const h = displayImage.height * 0.8;
+                    updateAspectRatioFromResolution();
 
-                    positionRect(startRect, displayImage.width * 0.1, displayImage.height * 0.1, w, h);
-                    positionRect(endRect, displayImage.width * 0.1, displayImage.height * 0.1, w / 2, h / 2);
+                    const aspectRatio = getAspectRatio();
+                    let rectW = displayImage.width * 0.8;
+                    let rectH = rectW / aspectRatio;
+
+                    if (rectH > displayImage.height * 0.8) {
+                        rectH = displayImage.height * 0.8;
+                        rectW = rectH * aspectRatio;
+                    }
+
+                    positionRect(startRect, displayImage.width * 0.1, displayImage.height * 0.1, rectW, rectH);
+                    positionRect(endRect, displayImage.width * 0.15, displayImage.height * 0.15, rectW / 2, rectH / 2);
 
                     updateDimensions();
                 };
@@ -116,9 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return (parts.length === 2 && parts[0] > 0 && parts[1] > 0) ? parts[0] / parts[1] : 16 / 9;
     }
 
-    /**
-     * Initializes Interact.js for draggable and resizable rectangles.
-     */
+    // --- Initialize Interact.js ONCE ---
     interact('.resizable-draggable')
         .draggable({
             listeners: {
@@ -126,7 +150,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     const target = event.target;
                     const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
                     const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-
                     target.style.transform = `translate(${x}px, ${y}px)`;
                     target.setAttribute('data-x', x);
                     target.setAttribute('data-y', y);
@@ -143,48 +166,40 @@ document.addEventListener('DOMContentLoaded', () => {
                     let x = (parseFloat(target.getAttribute('data-x')) || 0);
                     let y = (parseFloat(target.getAttribute('data-y')) || 0);
 
-                    target.style.width = `${event.rect.width}px`;
-                    target.style.height = `${event.rect.height}px`;
+                    let { width, height } = event.rect;
+
+                    // --- DEFINITIVE FIX: Manual Aspect Ratio Enforcement ---
+                    if (enforceAspectCheckbox.checked) {
+                        const ratio = getAspectRatio();
+                        // If width is changed, adjust height
+                        if (event.edges.left || event.edges.right) {
+                            height = width / ratio;
+                        }
+                        // If height is changed, adjust width
+                        else if (event.edges.top || event.edges.bottom) {
+                            width = height * ratio;
+                        }
+                    }
+
+                    target.style.width = `${width}px`;
+                    target.style.height = `${height}px`;
 
                     x += event.deltaRect.left;
                     y += event.deltaRect.top;
-
                     target.style.transform = `translate(${x}px, ${y}px)`;
                     target.setAttribute('data-x', x);
                     target.setAttribute('data-y', y);
                     updateDimensions();
                 }
             },
-            modifiers: [
-                interact.modifiers.aspectRatio({
-                    ratio: 'preserve',
-                    equalDelta: true,
-                    modifiers: [
-                        interact.modifiers.restrictSize({
-                            min: { width: 50, height: 50 }
-                        })
-                    ]
-                })
-            ],
             inertia: true
         });
 
-    /**
-     * Toggles aspect ratio enforcement for rectangles.
-     */
-    function toggleAspectRatio(enforce) {
-        interact('.resizable-draggable').resizable({
-            aspectRatio: enforce ? getAspectRatio() : 'preserve'
-        });
-    }
-
-    enforceAspectCheckbox.addEventListener('change', (e) => toggleAspectRatio(e.target.checked));
-    aspectRatioInput.addEventListener('input', () => {
-        if (enforceAspectCheckbox.checked) {
-            toggleAspectRatio(true);
-        }
+    // --- EVENT LISTENERS ---
+    resolutionSelect.addEventListener('change', () => {
+        updateAspectRatioFromResolution();
+        updateDimensions();
     });
-    resolutionSelect.addEventListener('change', updateDimensions);
 
     /**
      * Handles the "Generate Video" button click event.
@@ -203,15 +218,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const scaleX = originalImageWidth / displayImage.width;
         const scaleY = originalImageHeight / displayImage.height;
 
-        // --- DEFINITIVE FIX for coordinate calculation ---
         const getRectData = (rect) => {
             const imageBounds = displayImage.getBoundingClientRect();
             const rectBounds = rect.getBoundingClientRect();
-
-            // Calculate position of the rectangle relative to the image's top-left corner
             const x = rectBounds.left - imageBounds.left;
             const y = rectBounds.top - imageBounds.top;
-
             return {
                 x: x * scaleX,
                 y: y * scaleY,
@@ -247,7 +258,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok) {
                 resultVideo.src = result.video_url;
-                // --- FIX: Explicitly load the new video source ---
                 resultVideo.load();
                 resultVideo.classList.remove('hidden');
                 downloadLink.href = result.video_url;
@@ -264,5 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    toggleAspectRatio(enforceAspectCheckbox.checked);
+    // Initialize on page load
+    updateAspectRatioFromResolution();
 });
